@@ -1,0 +1,1668 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Minh An B2B Agent — Hệ Thống Tự Động Hóa Cơ Hội Bán Hàng</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #13171f;
+    --bg-surface: #1a202c;
+    --bg-card: rgba(26, 32, 44, 0.92);
+    --gold: #d4af37;
+    --gold-light: #f3e5ab;
+    --ink: #f0f4f8;
+    --ink-dim: #94a3b8;
+    --border: rgba(212, 175, 55, 0.25);
+    --border-light: rgba(255, 255, 255, 0.1);
+    --ease: cubic-bezier(.22,1,.36,1);
+    
+    /* Status Colors */
+    --c-success: #10b981;
+    --c-warning: #f59e0b;
+    --c-danger: #ef4444;
+    --c-approval: #8b5cf6;
+  }
+  
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: Inter, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  
+  /* Canvas 3D background */
+  canvas#gl {
+    position: fixed; inset: 0; width: 100%; height: 100%; display: block;
+    z-index: 1; touch-action: none; user-select: none; opacity: 0; transition: opacity 1.2s ease;
+  }
+  canvas#gl.on { opacity: 1; }
+  
+  /* Top Navigation Bar */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; height: 68px; z-index: 30;
+    display: flex; align-items: center; padding: 0 24px; gap: 24px;
+    background: linear-gradient(180deg, rgba(15, 20, 28, 0.96) 60%, rgba(15, 20, 28, 0));
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border-light);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit; cursor: pointer; }
+  .mark {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: linear-gradient(135deg, #d4af37, #996515);
+    display: grid; place-items: center; box-shadow: 0 4px 14px rgba(212,175,55,0.35);
+  }
+  .mark svg { width: 22px; height: 22px; fill: #111; }
+  .brand-text { display: flex; flex-direction: column; }
+  .brandname {
+    font-family: "EB Garamond", Georgia, serif; font-size: 20px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--gold-light);
+  }
+  .brandsub { font-size: 11px; color: var(--ink-dim); letter-spacing: 0.12em; text-transform: uppercase; }
+  
+  .nav-tabs { display: flex; align-items: center; gap: 8px; margin-left: 20px; }
+  .nav-tab {
+    background: rgba(255, 255, 255, 0.05); color: var(--ink-dim); border: 1px solid var(--border-light);
+    padding: 8px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 500; cursor: pointer;
+    transition: all .25s var(--ease); text-decoration: none; display: flex; align-items: center; gap: 7px;
+  }
+  .nav-tab:hover { background: rgba(255, 255, 255, 0.1); color: #fff; border-color: rgba(212, 175, 55, 0.4); }
+  .nav-tab.active {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(153, 101, 21, 0.3));
+    color: var(--gold-light); border-color: var(--gold);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+  }
+  
+  header .right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .btn-live-test {
+    background: linear-gradient(135deg, #10b981, #059669); color: white;
+    border: none; padding: 10px 20px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); transition: all 0.2s;
+  }
+  .btn-live-test:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45); }
+  
+  /* Detail Drawer on the Left (for 3D Vault) */
+  .detail {
+    position: fixed; left: 0; top: 68px; bottom: 85px; z-index: 20;
+    width: min(520px, 46vw); padding: 36px 36px 36px 44px;
+    background: linear-gradient(90deg, rgba(16, 21, 30, 0.98) 75%, rgba(16, 21, 30, 0));
+    display: flex; flex-direction: column; justify-content: center;
+    pointer-events: none; opacity: 0; transform: translateX(-30px);
+    transition: opacity .45s var(--ease), transform .45s var(--ease);
+  }
+  .detail.on { opacity: 1; transform: translateX(0); pointer-events: auto; }
+  .detail-badge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
+    border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .1em; width: fit-content; margin-bottom: 12px;
+  }
+  .badge-success { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+  .badge-warning { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+  .badge-danger { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+  .badge-approval { background: rgba(139, 92, 246, 0.18); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+  
+  .detail h2 {
+    font-family: "EB Garamond", Georgia, serif; font-size: 34px; font-weight: 600;
+    margin: 0 0 10px; color: #fff; line-height: 1.15;
+  }
+  .detail .meta { font-size: 13.5px; color: var(--gold); margin-bottom: 14px; font-family: "Fira Code", monospace; }
+  .detail .desc { font-size: 14.5px; line-height: 1.6; color: var(--ink-dim); margin-bottom: 24px; max-width: 440px; }
+  
+  .detail-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; max-width: 440px;
+    background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-light);
+    border-radius: 12px; padding: 14px;
+  }
+  .stat-item { display: flex; flex-direction: column; }
+  .stat-label { font-size: 11px; text-transform: uppercase; color: var(--ink-dim); letter-spacing: 0.08em; }
+  .stat-val { font-size: 15px; font-weight: 600; color: #fff; margin-top: 3px; font-family: "Fira Code", monospace; }
+  
+  .detail .acts { display: flex; flex-wrap: wrap; gap: 10px; max-width: 440px; }
+  .btn-act {
+    background: rgba(212, 175, 55, 0.15); color: var(--gold-light);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 11px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all .2s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-act:hover { background: var(--gold); color: #111; transform: translateY(-2px); }
+  .btn-act.primary { background: linear-gradient(135deg, #d4af37, #b8860b); color: #111; }
+  .btn-act.primary:hover { background: #e5c158; color: #000; }
+  
+  /* Bottom Shelf Rail */
+  footer {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 85px; z-index: 25;
+    background: linear-gradient(0deg, rgba(15, 20, 28, 0.98) 70%, rgba(15, 20, 28, 0));
+    border-top: 1px solid var(--border-light); backdrop-filter: blur(8px);
+    display: flex; align-items: center; padding: 0 20px;
+  }
+  .tl {
+    display: flex; gap: 16px; overflow-x: auto; width: 100%; padding: 10px 0;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .tl::-webkit-scrollbar { display: none; }
+  .tli {
+    background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 8px 14px; min-width: 200px; cursor: pointer;
+    display: flex; align-items: center; gap: 10px; transition: all .2s;
+  }
+  .tli:hover, .tli.active {
+    background: rgba(212, 175, 55, 0.15); border-color: var(--gold);
+    transform: translateY(-2px);
+  }
+  .tli-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .tli-info { display: flex; flex-direction: column; overflow: hidden; }
+  .tli-id { font-size: 10.5px; color: var(--gold); font-family: "Fira Code", monospace; }
+  .tli-title { font-size: 13px; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Interactive Overlays / Views (Workflow, Simulator, Dashboard, Specs) */
+  .view-panel {
+    position: fixed; inset: 68px 0 0 0; z-index: 28;
+    background: rgba(15, 20, 28, 0.96); backdrop-filter: blur(16px);
+    overflow-y: auto; padding: 32px; display: none; opacity: 0; transition: opacity .3s ease;
+  }
+  .view-panel.active { display: block; opacity: 1; }
+  
+  .container-xl { max-width: 1300px; margin: 0 auto; }
+  .panel-header { margin-bottom: 28px; }
+  .panel-title { font-family: "EB Garamond", serif; font-size: 32px; color: var(--gold-light); margin: 0 0 8px; }
+  .panel-subtitle { font-size: 14.5px; color: var(--ink-dim); max-width: 750px; line-height: 1.5; margin: 0; }
+  
+  /* Sơ đồ quy trình (Workflow Graph) */
+  .workflow-grid {
+    display: grid; grid-template-columns: 2.2fr 1fr; gap: 28px; align-items: start;
+  }
+  .wf-diagram-card {
+    background: var(--bg-surface); border: 1px solid var(--border-light);
+    border-radius: 16px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .wf-step {
+    background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-light);
+    border-radius: 12px; padding: 18px; margin-bottom: 14px; position: relative;
+    cursor: pointer; transition: all .25s;
+  }
+  .wf-step:hover, .wf-step.active {
+    border-color: var(--gold); background: rgba(212, 175, 55, 0.08);
+    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
+  }
+  .wf-step-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .wf-step-title { font-size: 15px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 10px; }
+  .wf-num {
+    width: 24px; height: 24px; border-radius: 50%; background: var(--gold);
+    color: #000; font-weight: 700; font-size: 12px; display: grid; place-items: center;
+  }
+  .wf-tag {
+    font-size: 11px; font-family: "Fira Code", monospace; padding: 3px 8px;
+    border-radius: 6px; background: rgba(255, 255, 255, 0.08); color: var(--gold-light);
+  }
+  .wf-step-desc { font-size: 13px; color: var(--ink-dim); line-height: 1.5; margin: 0; }
+  
+  .decision-box {
+    margin: 14px 0 14px 20px; padding: 14px 18px; border-left: 3px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.07); border-radius: 0 10px 10px 0; font-size: 13px;
+  }
+  .decision-title { font-weight: 600; color: #fbbf24; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .decision-paths { display: flex; flex-direction: column; gap: 4px; color: var(--ink-dim); }
+  .path-no { color: #f87171; }
+  .path-yes { color: #34d399; }
+  
+  /* Simulator / Live Playground */
+  .sim-layout { display: grid; grid-template-columns: 1fr 1.3fr; gap: 24px; }
+  .sim-card {
+    background: var(--bg-surface); border: 1px solid var(--border-light);
+    border-radius: 16px; padding: 24px;
+  }
+  .sim-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); margin-bottom: 8px; font-weight: 600; }
+  .sim-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .btn-preset {
+    background: rgba(255, 255, 255, 0.05); color: var(--ink-dim); border: 1px solid var(--border-light);
+    border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .2s;
+  }
+  .btn-preset:hover, .btn-preset.active { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 600; }
+  .sim-input {
+    width: 100%; height: 260px; background: #0f141c; border: 1px solid var(--border-light);
+    border-radius: 10px; color: #f0f4f8; font-family: "Fira Code", monospace; font-size: 13px;
+    padding: 14px; resize: vertical; margin-bottom: 16px;
+  }
+  .sim-input:focus { outline: none; border-color: var(--gold); }
+  
+  .sim-logs {
+    background: #0b0e14; border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px; padding: 14px; height: 350px; overflow-y: auto;
+    font-family: "Fira Code", monospace; font-size: 12px; line-height: 1.6; color: #a0aec0;
+  }
+  .log-line { margin-bottom: 6px; }
+  .log-time { color: #64748b; }
+  .log-agent { color: var(--gold); font-weight: 600; }
+  .log-tool { color: #38bdf8; }
+  .log-pass { color: #34d399; }
+  .log-warn { color: #fbbf24; }
+  .log-err { color: #f87171; }
+  
+  /* Dashboard & KPI */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 24px; }
+  .kpi-card {
+    background: var(--bg-surface); border: 1px solid var(--border-light);
+    border-radius: 14px; padding: 20px; position: relative; overflow: hidden;
+  }
+  .kpi-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .kpi-card.kpi-success::before { background: var(--c-success); }
+  .kpi-card.kpi-warning::before { background: var(--c-warning); }
+  .kpi-card.kpi-danger::before { background: var(--c-danger); }
+  .kpi-card.kpi-approval::before { background: var(--c-approval); }
+  
+  .kpi-title { font-size: 12.5px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .kpi-value { font-size: 32px; font-weight: 700; color: #fff; font-family: "Fira Code", monospace; }
+  .kpi-sub { font-size: 12px; color: var(--ink-dim); margin-top: 6px; }
+  
+  .val-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 28px; }
+  .val-box {
+    background: linear-gradient(135deg, rgba(26, 32, 44, 0.95), rgba(20, 25, 35, 0.95));
+    border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+  }
+  .val-label { font-size: 13px; color: var(--gold); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+  .val-number { font-size: 28px; font-weight: 700; color: var(--gold-light); font-family: "Fira Code", monospace; margin: 8px 0; }
+  .val-desc { font-size: 12.5px; color: var(--ink-dim); }
+  
+  /* Tables */
+  .table-card {
+    background: var(--bg-surface); border: 1px solid var(--border-light);
+    border-radius: 14px; padding: 20px; overflow-x: auto;
+  }
+  table.data-tbl { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+  table.data-tbl th {
+    padding: 12px 14px; border-bottom: 1px solid var(--border-light);
+    color: var(--gold-light); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .05em;
+  }
+  table.data-tbl td { padding: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: var(--ink); }
+  table.data-tbl tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+  /* Modal Document Viewer */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 50; background: rgba(5, 8, 12, 0.85);
+    backdrop-filter: blur(12px); display: none; place-items: center; padding: 20px;
+  }
+  .modal-backdrop.on { display: grid; }
+  .modal-window {
+    background: #181f2a; border: 1px solid var(--border); border-radius: 18px;
+    width: min(920px, 94vw); max-height: 88vh; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8); overflow: hidden;
+  }
+  .modal-header {
+    padding: 18px 24px; border-bottom: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .modal-header h3 { margin: 0; font-family: "EB Garamond", serif; font-size: 22px; color: var(--gold-light); }
+  .modal-close {
+    background: none; border: none; color: var(--ink-dim); font-size: 24px;
+    cursor: pointer; padding: 4px 8px; border-radius: 6px;
+  }
+  .modal-close:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+  .modal-body { padding: 24px; overflow-y: auto; font-size: 14px; line-height: 1.6; }
+  
+  .doc-section { margin-bottom: 24px; padding: 18px; border-radius: 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-light); }
+  .doc-section h4 { margin: 0 0 10px; color: var(--gold); font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .doc-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0; }
+  .doc-table th, .doc-table td { padding: 8px 10px; border: 1px solid rgba(255, 255, 255, 0.1); }
+  .doc-table th { background: rgba(255, 255, 255, 0.04); color: var(--gold-light); }
+  .email-preview {
+    background: #0f131a; border-left: 3px solid var(--gold); padding: 16px;
+    border-radius: 0 8px 8px 0; font-family: Inter, sans-serif; white-space: pre-wrap;
+  }
+
+  /* Loader */
+  .loader {
+    position: fixed; inset: 0; z-index: 99; display: grid; place-items: center;
+    background: #0f131a; transition: opacity .6s linear; pointer-events: none;
+  }
+  .loader.gone { opacity: 0; }
+  .loader-brand { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .loader-title { font-family: "EB Garamond", serif; font-size: 26px; color: var(--gold-light); }
+  .bar { width: 140px; height: 3px; background: rgba(255, 255, 255, 0.1); position: relative; overflow: hidden; border-radius: 3px; }
+  .bar i { position: absolute; inset: 0; transform-origin: left; transform: scaleX(0); background: var(--gold); transition: transform .3s linear; }
+</style>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.181.0/build/three.module.js" } }
+</script>
+</head>
+
+<body>
+
+<!-- WebGL 3D Canvas -->
+<canvas id="gl"></canvas>
+
+<!-- Top Header Navigation -->
+<header>
+  <div class="brand" onclick="switchTab('vault')">
+    <div class="mark">
+      <svg viewBox="0 0 24 24"><path d="M12 2c1.6 4.1 5.2 5.7 5.2 10a5.2 5.2 0 0 1-10.4 0C6.8 7.7 10.4 6.1 12 2z"/><path d="M6 20h12v1.6H6z"/></svg>
+    </div>
+    <div class="brand-text">
+      <span class="brandname">Minh An B2B</span>
+      <span class="brandsub">AI Sales Pipeline Engine</span>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tab-vault" onclick="switchTab('vault')">
+      <span>📚</span> 3D Vault
+    </button>
+    <button class="nav-tab" id="tab-workflow" onclick="switchTab('workflow')">
+      <span>🧭</span> Quy Trình Nghiệp Vụ
+    </button>
+    <button class="nav-tab" id="tab-simulator" onclick="switchTab('simulator')">
+      <span>⚡</span> Live Simulator
+    </button>
+    <button class="nav-tab" id="tab-dashboard" onclick="switchTab('dashboard')">
+      <span>📊</span> KPI Dashboard
+    </button>
+    <button class="nav-tab" id="tab-spec" onclick="switchTab('spec')">
+      <span>📖</span> Hồ Sơ Đồ Án AI301
+    </button>
+  </div>
+
+  <div class="right">
+    <button class="btn-live-test" onclick="switchTab('simulator')">
+      <span>▶</span> Chạy Agent
+    </button>
+  </div>
+</header>
+
+<!-- 3D Dossier Detail Panel (Left) -->
+<div class="detail" id="detail">
+  <div class="detail-badge" id="d-badge">CÓ THỂ TIẾP TỤC</div>
+  <div class="meta" id="d-meta">OPP-2026-001 · 2026-11-12</div>
+  <h2 id="d-title">Tập đoàn Xây dựng Hòa Bình</h2>
+  <p class="desc" id="d-desc">Trang bị 5 laptop kỹ thuật và hệ thống switch mạng cho ban điều hành công trường tại Quận 2.</p>
+  
+  <div class="detail-stats">
+    <div class="stat-item">
+      <span class="stat-label">Tổng Đề Xuất</span>
+      <span class="stat-val" id="d-val">154,500,000 đ</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Thẩm Quyền</span>
+      <span class="stat-val" id="d-auth">NVKD (Chuẩn)</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Tồn Kho Khả Dụng</span>
+      <span class="stat-val" id="d-stock" style="color:#34d399">Đạt (100%)</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Thời Hạn Giao</span>
+      <span class="stat-val" id="d-lead">5 ngày (Kịp)</span>
+    </div>
+  </div>
+
+  <div class="acts">
+    <button class="btn-act primary" onclick="openDossierModal()"><span>📄</span> Xem Hồ Sơ & Bản Nháp</button>
+    <button class="btn-act" onclick="openLogsModal()"><span>📋</span> Nhật Ký Truy Vết</button>
+    <button class="btn-act" onclick="loadIntoSimulator()"><span>⚡</span> Nạp Vào Simulator</button>
+  </div>
+</div>
+
+<!-- Bottom Shelf Rail (Dossier Items) -->
+<footer id="footer">
+  <div class="tl" id="tl"></div>
+</footer>
+
+<!-- VIEW PANEL 1: QUY TRÌNH NGHIỆP VỤ (Khớp 100% sơ đồ ảnh) -->
+<div class="view-panel" id="view-workflow">
+  <div class="container-xl">
+    <div class="panel-header">
+      <h1 class="panel-title">Quy Trình Xử Lý Cơ Hội Bán Hàng B2B — Minh An Agent</h1>
+      <p class="panel-subtitle">Sơ đồ 6 bước vận hành phối hợp giữa AI Agent và chuyên viên kinh doanh/cấp quản lý theo kiến trúc chuẩn AI301.</p>
+    </div>
+
+    <div class="workflow-grid">
+      <div class="wf-diagram-card">
+        <!-- Bước 1 -->
+        <div class="wf-step" onclick="showWfDetail(1)">
+          <div class="wf-step-header">
+            <div class="wf-step-title"><span class="wf-num">1</span> Tiếp nhận – Phân tích – Xác thực yêu cầu</div>
+            <span class="wf-tag">AI Agent + Tool: parser</span>
+          </div>
+          <p class="wf-step-desc">• Đọc nội dung email/form phi cấu trúc • Kiểm tra trùng lặp, chuẩn hóa dữ liệu • Gắn mã định danh cơ hội duy nhất (OPP-YYYY-XXXX).</p>
+        </div>
+
+        <!-- Bước 2 -->
+        <div class="wf-step" onclick="showWfDetail(2)">
+          <div class="wf-step-header">
+            <div class="wf-step-title"><span class="wf-num">2</span> Phân tích yêu cầu khách hàng</div>
+            <span class="wf-tag">Skill: requirement_analysis</span>
+          </div>
+          <p class="wf-step-desc">• Liệt kê danh mục sản phẩm, số lượng, ngân sách dự kiến, thời hạn • Tự động phát hiện các thông tin bắt buộc còn thiếu.</p>
+        </div>
+
+        <!-- Rẽ nhánh 1 -->
+        <div class="decision-box">
+          <div class="decision-title"><span>⚖️</span> Quyết định 1: Dữ liệu đã đầy đủ và hợp lệ?</div>
+          <div class="decision-paths">
+            <span class="path-no">❌ <b>Không</b> ➔ <b>Yêu cầu bổ sung thông tin:</b> Agent tự soạn email hỏi khách hàng / chuyển NVKD liên hệ.</span>
+            <span class="path-yes">✅ <b>Có</b> ➔ Chuyển sang Bước 3: Đối chiếu dữ liệu kinh doanh.</span>
+          </div>
+        </div>
+
+        <!-- Bước 3 -->
+        <div class="wf-step" onclick="showWfDetail(3)">
+          <div class="wf-step-header">
+            <div class="wf-step-title"><span class="wf-num">3</span> Đối chiếu dữ liệu kinh doanh</div>
+            <span class="wf-tag">Tool: Tra cứu ERP & Kho</span>
+          </div>
+          <p class="wf-step-desc">• Tra cứu mã sản phẩm, bảng giá niêm yết hiện hành • Kiểm tra tồn kho khả dụng (ATP) • Đối soát thời gian triển khai/giao hàng tối thiểu.</p>
+        </div>
+
+        <!-- Bước 4 -->
+        <div class="wf-step" onclick="showWfDetail(4)">
+          <div class="wf-step-header">
+            <div class="wf-step-title"><span class="wf-num">4</span> Đánh giá khả năng đáp ứng</div>
+            <span class="wf-tag">Skill: opportunity_evaluation</span>
+          </div>
+          <p class="wf-step-desc">• Tính toán giá trị đề xuất sau chiết khấu • So khớp ngân sách khách hàng • Kiểm tra hạn mức và phân cấp thẩm quyền phê duyệt.</p>
+        </div>
+
+        <!-- Rẽ nhánh 2 & 3 -->
+        <div class="decision-box">
+          <div class="decision-title"><span>⚖️</span> Quyết định 2: Có đáp ứng được yêu cầu (kho & thời hạn)?</div>
+          <div class="decision-paths">
+            <span class="path-no">❌ <b>Không</b> ➔ <b>Đề xuất phương án khác</b> (chia đợt/sản phẩm tương đương) hoặc thông báo không thể đáp ứng.</span>
+            <span class="path-yes">✅ <b>Có</b> ➔ Kiểm tra tiếp thẩm quyền phê duyệt:</span>
+            <div style="margin-left:14px; margin-top:6px; font-size:12.5px;">
+              • <b>Không vượt quyền (≤ 200tr, CK ≤ 5%):</b> ➔ <b style="color:#34d399">Có thể tiếp tục</b> (NVKD trực tiếp gửi báo giá)<br>
+              • <b>Vượt quyền NV (≤ 200tr, CK > 5% HOẶC 200tr - 1 tỷ):</b> ➔ <b style="color:#a78bfa">Chờ duyệt</b> (Lập phiếu chuyển Trưởng phòng)<br>
+              • <b>Vượt quyền TP (> 1 tỷ hoặc CK > 12%):</b> ➔ <b style="color:#c084fc">Chuyển cấp cao hơn</b> (Trình Ban Giám đốc)
+            </div>
+          </div>
+        </div>
+
+        <!-- Bước 5 -->
+        <div class="wf-step" onclick="showWfDetail(5)">
+          <div class="wf-step-header">
+            <div class="wf-step-title"><span class="wf-num">5</span> Tạo hồ sơ và phản hồi</div>
+            <span class="wf-tag">Skill: sales_document_generator</span>
+          </div>
+          <p class="wf-step-desc">• Tự động xuất Hồ sơ cơ hội B2B (Dossier) • Soạn thảo Bản nháp email chuyên nghiệp gửi khách hàng • Lập Phiếu chuyển duyệt (nếu vượt cấp).</p>
+        </div>
+
+        <!-- Bước 6 -->
+        <div class="wf-step" onclick="showWfDetail(6)">
+          <div class="wf-step-header">
+            <div class="wf-step-title"><span class="wf-num">6</span> Kiểm tra chéo và ghi nhật ký</div>
+            <span class="wf-tag">Tool: Logging & Audit Trail</span>
+          </div>
+          <p class="wf-step-desc">• Rà soát an toàn nghiệp vụ (Guardrails) • Lưu log thực thi chi tiết (thời gian, rule, công cụ đã gọi) • Bàn giao kết quả cho nhân sự chịu trách nhiệm.</p>
+        </div>
+      </div>
+
+      <!-- Khối Kết Quả Đầu Ra (Theo ảnh) -->
+      <div class="wf-diagram-card" style="border-color: var(--border);">
+        <h3 style="margin-top:0; color:var(--gold-light); font-size:18px; display:flex; align-items:center; gap:8px;">
+          <span>📊</span> Kết quả đầu ra của Agent
+        </h3>
+
+        <div style="margin-bottom:18px;">
+          <h4 style="color:#fff; font-size:14px; margin-bottom:6px;">📑 1. Hồ sơ cơ hội bán hàng</h4>
+          <ul style="font-size:12.5px; color:var(--ink-dim); margin:0; padding-left:18px; line-height:1.6;">
+            <li>Thông tin khách hàng & người liên hệ</li>
+            <li>Bảng danh mục sản phẩm, số lượng, đơn giá</li>
+            <li>Giá trị đề xuất, thời hạn giao & trạng thái</li>
+            <li>Căn cứ lý giải phân loại & điều kiện áp dụng</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom:18px;">
+          <h4 style="color:#fff; font-size:14px; margin-bottom:6px;">✉️ 2. Bản nháp phản hồi khách hàng</h4>
+          <p style="font-size:12.5px; color:var(--ink-dim); margin:0; line-height:1.5; font-style:italic; background:rgba(0,0,0,0.3); padding:10px; border-radius:6px;">
+            "Kính gửi Quý khách, Cảm ơn Quý khách đã quan tâm đến giải pháp thiết bị công nghệ của Minh An. Chúng tôi xin gửi đề xuất chi tiết..."
+          </p>
+        </div>
+
+        <div style="margin-bottom:18px;">
+          <h4 style="color:#fff; font-size:14px; margin-bottom:6px;">📄 3. Phiếu chuyển duyệt (Khi cần)</h4>
+          <p style="font-size:12.5px; color:var(--ink-dim); margin:0; line-height:1.5;">
+            Trình Trưởng phòng hoặc Ban Giám đốc kèm phân tích biên lợi nhuận, chiết khấu và rủi ro công nợ.
+          </p>
+        </div>
+
+        <div style="padding-top:14px; border-top:1px solid var(--border-light);">
+          <h4 style="color:var(--gold); font-size:14px; margin-bottom:8px;">🎯 4 Thước đo an toàn:</h4>
+          <div style="font-size:12px; color:var(--ink-dim); line-height:1.6;">
+            🛡️ <b>Không tự ý bán hàng</b> khi chưa đủ dữ kiện bắt buộc.<br>
+            🛡️ <b>Không vượt quyền hạn</b>: Đơn vượt hạn mức bắt buộc có chữ ký duyệt của Trưởng phòng/BGĐ.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW PANEL 2: LIVE SIMULATOR & TEST RUNNER -->
+<div class="view-panel" id="view-simulator">
+  <div class="container-xl">
+    <div class="panel-header">
+      <h1 class="panel-title">Bộ Mô Phỏng Xử Lý Trực Tiếp (Live Agent Test Suite)</h1>
+      <p class="panel-subtitle">Nạp yêu cầu khách hàng dạng văn bản thô hoặc JSON, quan sát Agent gọi Tool, đối chiếu dữ liệu kinh doanh và tự động sinh kết quả.</p>
+    </div>
+
+    <div class="sim-layout">
+      <!-- Input Panel -->
+      <div class="sim-card">
+        <div class="sim-label">Chọn Kịch Bản Kiểm Thử Chuẩn (AI301 Test Cases):</div>
+        <div class="sim-presets">
+          <button class="btn-preset active" onclick="loadPreset('tc1')">TC1: Thông thường</button>
+          <button class="btn-preset" onclick="loadPreset('tc2')">TC2: Thiếu dữ liệu</button>
+          <button class="btn-preset" onclick="loadPreset('tc3')">TC3: Vượt quyền TP</button>
+          <button class="btn-preset" onclick="loadPreset('tc4')">TC4: Không đáp ứng kho</button>
+          <button class="btn-preset" onclick="loadPreset('tc5')">TC5: Vượt quyền BGĐ</button>
+        </div>
+
+        <div class="sim-label">Nội dung Yêu cầu Khách hàng (Email / Web Form):</div>
+        <textarea class="sim-input" id="sim-raw-input"></textarea>
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <button class="btn-live-test" onclick="runLiveAgent()" id="btn-run-agent" style="width:100%; justify-content:center; padding:12px;">
+            <span>🚀</span> Kích Hoạt AI Agent Xử Lý
+          </button>
+        </div>
+      </div>
+
+      <!-- Execution Logs & Real-time Output -->
+      <div class="sim-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div class="sim-label" style="margin-bottom:0;">Nhật Ký Thực Thi (Execution Trace Log):</div>
+          <span id="agent-status-pill" style="font-size:11px; font-family:'Fira Code'; color:var(--gold);">Sẵn sàng</span>
+        </div>
+        <div class="sim-logs" id="sim-log-box">
+          <div class="log-line"><span class="log-time">[20:30:00]</span> <span class="log-agent">[AGENT_CORE]</span> Khởi tạo môi trường Minh An B2B Sales Agent.</div>
+          <div class="log-line"><span class="log-time">[20:30:01]</span> <span class="log-agent">[TOOL_INIT]</span> Đã nạp danh mục 7 sản phẩm và 4 quy tắc thẩm quyền.</div>
+          <div class="log-line"><span class="log-time">[20:30:02]</span> <span class="log-agent">[SYSTEM]</span> Đang chờ lệnh kích hoạt xử lý yêu cầu...</div>
+        </div>
+
+        <div id="sim-result-box" style="margin-top:16px; display:none; padding:14px; border-radius:10px; background:rgba(212,175,55,0.08); border:1px solid var(--border);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:11px; text-transform:uppercase; color:var(--gold); font-weight:600;">Kết Quả Phân Loại:</div>
+              <div id="sim-res-status" style="font-size:18px; font-weight:700; color:#fff; margin-top:2px;">CÓ THỂ TIẾP TỤC</div>
+            </div>
+            <button class="btn-act primary" onclick="openCurrentSimResult()" style="padding:8px 16px;">
+              <span>📑</span> Mở Hồ Sơ Vừa Tạo
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW PANEL 3: KPI & EXECUTIVE DASHBOARD -->
+<div class="view-panel" id="view-dashboard">
+  <div class="container-xl">
+    <div class="panel-header">
+      <h1 class="panel-title">Bảng Tổng Hợp Kết Quả Bán Hàng B2B</h1>
+      <p class="panel-subtitle">Báo cáo trực quan tình trạng xử lý 180 yêu cầu/tuần, phân bổ theo 4 nhóm cơ hội và tính riêng tổng giá trị theo yêu cầu Ban Giám Đốc.</p>
+    </div>
+
+    <!-- 4 KPI Cards -->
+    <div class="kpi-row">
+      <div class="kpi-card kpi-success">
+        <div class="kpi-title">Có thể tiếp tục</div>
+        <div class="kpi-value" id="kpi-count-pass">45</div>
+        <div class="kpi-sub">Đủ điều kiện, NVKD gửi báo giá</div>
+      </div>
+      <div class="kpi-card kpi-warning">
+        <div class="kpi-title">Cần bổ sung</div>
+        <div class="kpi-value" id="kpi-count-missing">25</div>
+        <div class="kpi-sub">Thiếu thông tin, đã gửi email hỏi</div>
+      </div>
+      <div class="kpi-card kpi-danger">
+        <div class="kpi-title">Chưa đáp ứng</div>
+        <div class="kpi-value" id="kpi-count-fail">15</div>
+        <div class="kpi-sub">Tồn kho thiếu hoặc tiến độ quá gấp</div>
+      </div>
+      <div class="kpi-card kpi-approval">
+        <div class="kpi-title">Chờ duyệt</div>
+        <div class="kpi-value" id="kpi-count-approval">15</div>
+        <div class="kpi-sub">Vượt quyền NVKD hoặc Trưởng phòng</div>
+      </div>
+    </div>
+
+    <!-- Tổng Giá Trị Đủ Điều Kiện & Chờ Duyệt (Tính riêng theo đề bài) -->
+    <div class="val-row">
+      <div class="val-box">
+        <div class="val-label">Tổng Giá Trị: Đủ Điều Kiện Tiếp Tục</div>
+        <div class="val-number" id="val-pass">2,450,000,000 đ</div>
+        <div class="val-desc">Các cơ hội đầy đủ dữ kiện, trong hạn mức NVKD, sẵn sàng chốt hợp đồng.</div>
+      </div>
+      <div class="val-box" style="border-color: rgba(139, 92, 246, 0.4);">
+        <div class="val-label" style="color: #a78bfa;">Tổng Giá Trị: Chờ Phê Duyệt</div>
+        <div class="val-number" style="color: #c084fc;" id="val-approval">1,295,000,000 đ</div>
+        <div class="val-desc">Các cơ hội lớn cần Trưởng phòng hoặc Ban Giám đốc phê duyệt chiết khấu/hạn mức.</div>
+      </div>
+    </div>
+
+    <!-- Bảng Chi Tiết Cơ Hội -->
+    <div class="table-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="margin:0; font-size:16px; color:#fff;">Danh Sách Cơ Hội B2B Đang Theo Dõi</h3>
+        <div style="font-size:12px; color:var(--ink-dim);">Hiển thị toàn bộ dữ liệu đã được AI Agent thẩm định</div>
+      </div>
+      <table class="data-tbl" id="pipeline-table">
+        <thead>
+          <tr>
+            <th>Mã Cơ Hội</th>
+            <th>Khách Hàng Doanh Nghiệp</th>
+            <th>Hạng Mục Sản Phẩm</th>
+            <th>Giá Trị Đề Xuất</th>
+            <th>Trạng Thái</th>
+            <th>Thẩm Quyền</th>
+            <th>Hành Động</th>
+          </tr>
+        </thead>
+        <tbody id="pipeline-tbody">
+          <!-- Rendered dynamically -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW PANEL 4: HỒ SƠ ĐỒ ÁN AI301 (Báo Cáo Task 1 & Task 2) -->
+<div class="view-panel" id="view-spec">
+  <div class="container-xl">
+    <div class="panel-header">
+      <h1 class="panel-title">Tài Liệu Thiết Kế Nghiệp Vụ AI301</h1>
+      <p class="panel-subtitle">Nội dung chi tiết giải quyết đầy đủ Task 1 (Phân tích, Thiết kế RACI, Human-in-the-loop) và Task 2 (Bằng chứng thực thi, Kiểm thử biên).</p>
+    </div>
+
+    <div class="wf-diagram-card" style="margin-bottom:24px;">
+      <h2 style="color:var(--gold-light); font-family:'EB Garamond'; font-size:24px;">1. Phân Tích 3 Vấn Đề Cốt Lõi (Task 1)</h2>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-top:14px;">
+        <div style="background:rgba(255,255,255,0.03); padding:16px; border-radius:10px; border:1px solid var(--border-light);">
+          <h4 style="color:#f87171; margin:0 0 8px;">1. Quá Tải & Sai Sót Dữ Liệu</h4>
+          <p style="font-size:13px; color:var(--ink-dim); line-height:1.5; margin:0;">
+            <b>Cơ chế:</b> NVKD tra giá cũ từ trí nhớ, trao đổi miệng với bộ phận Kho.<br>
+            <b>Hậu quả:</b> Báo giá sai gây thâm hụt biên lợi nhuận, cam kết giao hàng không khả thi bị khách phạt hợp đồng.
+          </p>
+        </div>
+        <div style="background:rgba(255,255,255,0.03); padding:16px; border-radius:10px; border:1px solid var(--border-light);">
+          <h4 style="color:#fbbf24; margin:0 0 8px;">2. Thất Thoát Cơ Hội Thiếu Thông Tin</h4>
+          <p style="font-size:13px; color:var(--ink-dim); line-height:1.5; margin:0;">
+            <b>Cơ chế:</b> Các email thiếu ngân sách/người duyệt bị đùn đẩy qua lại, không có SLA theo dõi.<br>
+            <b>Hậu quả:</b> Thất thoát 25-30% cơ hội tiềm năng, lãng phí thời gian vào khách không tiềm năng.
+          </p>
+        </div>
+        <div style="background:rgba(255,255,255,0.03); padding:16px; border-radius:10px; border:1px solid var(--border-light);">
+          <h4 style="color:#c084fc; margin:0 0 8px;">3. Vượt Thẩm Quyền Phê Duyệt</h4>
+          <p style="font-size:13px; color:var(--ink-dim); line-height:1.5; margin:0;">
+            <b>Cơ chế:</b> NVKD tự ý chiết khấu vượt khung vì áp lực doanh số, không kiểm soát ranh giới 200tr.<br>
+            <b>Hậu quả:</b> Mất kiểm soát giá bán, rủi ro nợ xấu cho Ban Giám đốc.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wf-diagram-card">
+      <h2 style="color:var(--gold-light); font-family:'EB Garamond'; font-size:24px;">2. Cơ Chế Human-in-the-Loop & Giám Sát</h2>
+      <p style="font-size:14px; color:var(--ink-dim); line-height:1.6;">
+        Hệ thống được thiết kế theo nguyên tắc: <b>AI Agent là cánh tay đắc lực tự động hóa khâu chuẩn bị và tính toán, con người giữ quyền quyết định cuối cùng tại các điểm rủi ro.</b>
+      </p>
+      <ul style="font-size:13.5px; color:var(--ink); line-height:1.8; padding-left:20px;">
+        <li><b>Điểm kiểm tra 1 (NVKD):</b> Kiểm tra các trường hợp gắn cờ <i>Cần bổ sung</i> hoặc <i>Chưa đáp ứng</i>. Chuyên viên gọi điện chăm sóc khách hàng, tư vấn giải pháp thay thế.</li>
+        <li><b>Điểm quyết định 2 (Trưởng phòng / Ban Giám đốc):</b> Phê duyệt chính thức trên <i>Phiếu trình chuyển duyệt</i> điện tử trước khi phát hành báo giá chính thức đối với các đơn hàng vượt 200 triệu hoặc chiết khấu đặc biệt.</li>
+        <li><b>Nguyên tắc an toàn (Guardrail):</b> Tuyệt đối không tự động xác nhận bán hàng khi chưa đủ dữ kiện bắt buộc hoặc khi đơn hàng vượt thẩm quyền.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL POPUP: CHI TIẾT HỒ SƠ & TÀI LIỆU -->
+<div class="modal-backdrop" id="doc-modal">
+  <div class="modal-window">
+    <div class="modal-header">
+      <h3 id="modal-title">Hồ Sơ Cơ Hội Bán Hàng B2B</h3>
+      <button class="modal-close" onclick="closeDossierModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body-content">
+      <!-- Injected dynamically -->
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loader" id="loader">
+  <div class="loader-brand">
+    <span class="loader-title">Minh An B2B Sales Agent</span>
+    <div class="bar"><i id="barfill"></i></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ════════════════════════════════════════════════════════════════════════
+   1 · MASTER DATA & KNOWLEDGE BASE (MINH AN B2B)
+   ════════════════════════════════════════════════════════════════════════ */
+const PRODUCTS = [
+  { id:'LAPTOP-DELL-5530', name:'Dell Latitude 5530 i7/16GB/512GB', price:24500000, stock:85, leadDays:3, cat:'Laptop' },
+  { id:'PC-HP-PRO400', name:'HP ProDesk 400 G9 i5/16GB/512GB', price:16800000, stock:40, leadDays:3, cat:'PC' },
+  { id:'SRV-DELL-R750', name:'Server Dell PowerEdge R750 2xXeon/64GB', price:115000000, stock:8, leadDays:14, cat:'Server' },
+  { id:'SW-CISCO-C9200', name:'Switch Cisco Catalyst 9200L 24P PoE+', price:32000000, stock:25, leadDays:5, cat:'Network' },
+  { id:'FW-FORTI-60F', name:'Firewall Fortinet FortiGate 60F', price:18500000, stock:30, leadDays:2, cat:'Security' },
+  { id:'MON-DELL-P2422H', name:'Màn hình Dell Professional 24" IPS', price:4200000, stock:120, leadDays:2, cat:'Monitor' },
+  { id:'SVC-DEPLOY-STD', name:'Dịch vụ triển khai hạ tầng mạng chuẩn', price:15000000, stock:999, leadDays:5, cat:'Service' }
+];
+
+const AUTHORITY = {
+  STAFF_MAX_VAL: 200000000,   // <= 200tr
+  STAFF_MAX_DISCOUNT: 0.05,   // <= 5%
+  MANAGER_MAX_VAL: 1000000000,// <= 1 tỷ
+  MANAGER_MAX_DISCOUNT: 0.12  // <= 12%
+};
+
+/* 10 Cơ hội mẫu bao quát 4 trạng thái */
+const DOSSIERS = [
+  {
+    id: 'OPP-2026-001', company: 'Tập đoàn Hòa Bình', contact: 'Nguyễn Văn Hùng (GĐ Dự Án)',
+    email: 'hung.nv@hoabinhcorp.vn', date: '2026-11-12', shelf: 0, slot: 0,
+    title: 'Hòa Bình Corp', sub: 'THIẾT BỊ VĂN PHÒNG CHỈ HUY QUẬN 2',
+    spine: '#1e3a5f', cloth: '#101726',
+    items: [ { pid: 'LAPTOP-DELL-5530', qty: 5 }, { pid: 'SW-CISCO-C9200', qty: 1 } ],
+    budget: 170000000, reqLead: 7, discountReq: 0.03,
+    status: 'CO_THE_TIEP_TUC', auth: 'NVKD (Trong hạn mức)',
+    blurb: 'Đầy đủ thông tin, tồn kho đáp ứng 100%, ngân sách đủ, chiết khấu 3% hợp lệ trong quyền nhân viên.'
+  },
+  {
+    id: 'OPP-2026-002', company: 'Công ty CP BĐS Novaland', contact: 'Lê Hoàng Nam (IT Manager)',
+    email: 'nam.lh@novaland.com.vn', date: '2026-11-11', shelf: 0, slot: 1,
+    title: 'BĐS Novaland', sub: 'HẠ TẦNG SERVER VÀ SWITCH TRỤ SỞ',
+    spine: '#5b21b6', cloth: '#19112e',
+    items: [ { pid: 'SRV-DELL-R750', qty: 2 }, { pid: 'SW-CISCO-C9200', qty: 8 } ],
+    budget: 550000000, reqLead: 20, discountReq: 0.10,
+    status: 'CHO_DUYET', auth: 'Trưởng phòng (Vượt 200tr, CK 10%)',
+    blurb: 'Giá trị sau CK là 437.4 triệu VNĐ. Vượt hạn mức NVKD (200tr), nằm trong quyền Trưởng phòng duyệt.'
+  },
+  {
+    id: 'OPP-2026-003', company: 'Chuỗi Bán Lẻ WinMart', contact: 'Trần Thị Mai',
+    email: 'mai.tt@winmart.vn', date: '2026-11-10', shelf: 0, slot: 2,
+    title: 'WinMart Retail', sub: 'ĐỀ NGHỊ BÁO GIÁ MÀN HÌNH & PC',
+    spine: '#92400e', cloth: '#26170d',
+    items: [ { pid: 'MON-DELL-P2422H', qty: 60 }, { pid: 'PC-HP-PRO400', qty: 30 } ],
+    budget: null, reqLead: null, discountReq: 0.05,
+    status: 'CAN_BO_SUNG', auth: 'NVKD (Liên hệ bổ sung)',
+    blurb: 'Email khách hàng không ghi rõ tổng ngân sách và ngày giao hàng mong muốn. Cần gửi email làm rõ.'
+  },
+  {
+    id: 'OPP-2026-004', company: 'Bệnh viện ĐK Tâm Anh', contact: 'BS. Phan Anh Tuấn',
+    email: 'tuan.pa@tamanhhospital.vn', date: '2026-11-09', shelf: 0, slot: 3,
+    title: 'BV Tâm Anh', sub: 'MỞ RỘNG PHÒNG KHÁM CHUYÊN KHOA',
+    spine: '#991b1b', cloth: '#260f0f',
+    items: [ { pid: 'MON-DELL-P2422H', qty: 150 } ],
+    budget: 650000000, reqLead: 1, discountReq: 0.0,
+    status: 'CHUA_DAP_UNG', auth: 'NVKD (Đề xuất giải pháp)',
+    blurb: 'Tồn kho khả dụng chỉ có 120 màn hình (thiếu 30). Khách yêu cầu giao gấp trong 1 ngày trong khi SLA tối thiểu là 2 ngày.'
+  },
+  {
+    id: 'OPP-2026-005', company: 'Trường Đại học FPT', contact: 'ThS. Đỗ Quốc Huy (Phòng Lab)',
+    email: 'huydq@fe.edu.vn', date: '2026-11-08', shelf: 0, slot: 4,
+    title: 'Đại học FPT', sub: 'NÂNG CẤP PHÒNG THỰC HÀNH IT',
+    spine: '#5b21b6', cloth: '#19112e',
+    items: [ { pid: 'PC-HP-PRO400', qty: 10 } ],
+    budget: 180000000, reqLead: 10, discountReq: 0.09,
+    status: 'CHO_DUYET', auth: 'Trưởng phòng (CK 9% > 5%)',
+    blurb: 'Giá trị 168 triệu VNĐ (<= 200tr) nhưng khách yêu cầu chiết khấu 9% (vượt quyền NV 5%). Cần Trưởng phòng duyệt.'
+  },
+  {
+    id: 'OPP-2026-006', company: 'Ngân hàng Techcombank', contact: 'Vũ Minh Đức (Khối IT)',
+    email: 'duc.vm@techcombank.com.vn', date: '2026-11-07', shelf: 1, slot: 0,
+    title: 'Techcombank', sub: 'THIẾT BỊ BẢO MẬT PHÒNG GIAO DỊCH',
+    spine: '#1e3a5f', cloth: '#101726',
+    items: [ { pid: 'FW-FORTI-60F', qty: 3 }, { pid: 'SW-CISCO-C9200', qty: 2 } ],
+    budget: 130000000, reqLead: 5, discountReq: 0.04,
+    status: 'CO_THE_TIEP_TUC', auth: 'NVKD (Trong hạn mức)',
+    blurb: 'Đầy đủ dữ kiện, thiết bị có sẵn trong kho, ngân sách 130tr cao hơn giá trị đề xuất 114.7tr sau CK 4%.'
+  },
+  {
+    id: 'OPP-2026-007', company: 'Viettel IDC', contact: 'Trịnh Đình Quang (Data Center)',
+    email: 'quangtd@viettel.com.vn', date: '2026-11-06', shelf: 1, slot: 1,
+    title: 'Viettel IDC', sub: 'MỞ RỘNG CỤM MÁY CHỦ CLOUD 2026',
+    spine: '#701a75', cloth: '#260f29',
+    items: [ { pid: 'SRV-DELL-R750', qty: 12 }, { pid: 'SW-CISCO-C9200', qty: 15 } ],
+    budget: 2000000000, reqLead: 30, discountReq: 0.14,
+    status: 'CHO_DUYET', auth: 'Ban Giám Đốc (> 1 tỷ, CK 14%)',
+    blurb: 'Đơn hàng quy mô lớn 1.86 tỷ VNĐ, chiết khấu 14% vượt quyền Trưởng phòng. Agent lập phiếu trình Ban Giám đốc.'
+  },
+  {
+    id: 'OPP-2026-008', company: 'Dược Hậu Giang', contact: 'Nguyễn Bích Nga (Thu Mua)',
+    email: 'nganb@dhgpharma.com.vn', date: '2026-11-05', shelf: 1, slot: 2,
+    title: 'Dược Hậu Giang', sub: 'HỆ THỐNG MẠNG VĂN PHÒNG',
+    spine: '#92400e', cloth: '#26170d',
+    items: [],
+    budget: 150000000, reqLead: 15, discountReq: 0.05,
+    status: 'CAN_BO_SUNG', auth: 'NVKD (Khảo sát kỹ thuật)',
+    blurb: 'Khách hàng chỉ ghi chung chung "cần báo giá thiết bị mạng tốt nhất", chưa có danh mục thiết bị cụ thể.'
+  },
+  {
+    id: 'OPP-2026-009', company: 'Tập đoàn Vingroup VinFast', contact: 'Hoàng Tuấn Kiên (Procurement)',
+    email: 'kien.ht@vinfast.vn', date: '2026-11-04', shelf: 1, slot: 3,
+    title: 'Vingroup VinFast', sub: 'TRANG BỊ MÁY TÍNH KỸ THUẬT',
+    spine: '#1e3a5f', cloth: '#101726',
+    items: [ { pid: 'LAPTOP-DELL-5530', qty: 8 } ],
+    budget: 200000000, reqLead: 5, discountReq: 0.05,
+    status: 'CO_THE_TIEP_TUC', auth: 'NVKD (Trong hạn mức)',
+    blurb: 'Tổng giá trị sau chiết khấu 5% là 186.2 triệu VNĐ, nằm trọn trong hạn mức 200 triệu của chuyên viên kinh doanh.'
+  },
+  {
+    id: 'OPP-2026-010', company: 'Logistics Tân Cảng', contact: 'Đặng Quốc Bảo (Kho Vận)',
+    email: 'baodq@tancang.com.vn', date: '2026-11-03', shelf: 1, slot: 4,
+    title: 'Tân Cảng Logistics', sub: 'THIẾT BỊ ĐỌC MÃ VẠCH CẢNG',
+    spine: '#991b1b', cloth: '#260f0f',
+    items: [],
+    budget: 90000000, reqLead: 3, discountReq: 0.0,
+    status: 'CHUA_DAP_UNG', auth: 'NVKD (Từ chối & Giới thiệu đối tác)',
+    blurb: 'Thiết bị máy quét công nghiệp nằm ngoài danh mục công nghệ phân phối của Minh An. Agent soạn thư từ chối nhã nhặn.'
+  }
+];
+
+/* ════════════════════════════════════════════════════════════════════════
+   2 · CORE AGENT PIPELINE ENGINE (BƯỚC 1 - BƯỚC 6)
+   ════════════════════════════════════════════════════════════════════════ */
+function runAgentOnInput(rawText) {
+  const logs = [];
+  const addLog = (tag, msg, type = 'info') => {
+    const time = new Date().toLocaleTimeString();
+    logs.push({ time, tag, msg, type });
+  };
+
+  addLog('BƯỚC 1', 'Tiếp nhận yêu cầu thô, làm sạch và chuẩn hóa dữ liệu...', 'agent');
+  addLog('TOOL:parser', 'Trích xuất thực thể: Tên khách hàng, sản phẩm, ngân sách, thời hạn.', 'tool');
+  
+  // Parse rough entities
+  let company = 'Khách hàng B2B Doanh Nghiệp';
+  let email = 'contact@enterprise.vn';
+  let budget = null;
+  let deadline = null;
+  let discountReq = 0.0;
+  let items = [];
+
+  // Match company
+  const compMatch = rawText.match(/(?:Công ty|Tập đoàn|Doanh nghiệp|BV|Trường ĐH)\s+([^\n,\.]+)/i);
+  if (compMatch) company = compMatch[0].trim();
+
+  // Match budget
+  const bMatch = rawText.match(/(\d+[\.,]?\d*)\s*(triệu|tỷ|tr)/i);
+  if (bMatch) {
+    let num = parseFloat(bMatch[1].replace(',', '.'));
+    if (bMatch[2].toLowerCase() === 'tỷ') num *= 1000000000;
+    else num *= 1000000;
+    budget = num;
+  }
+
+  // Match deadline
+  const dMatch = rawText.match(/(\d+)\s*ngày/i);
+  if (dMatch) deadline = parseInt(dMatch[1]);
+
+  // Match discount
+  const discMatch = rawText.match(/(\d+)%/);
+  if (discMatch) discountReq = parseFloat(discMatch[1]) / 100;
+
+  // Match products
+  if (/laptop|dell/i.test(rawText)) items.push({ pid: 'LAPTOP-DELL-5530', qty: 5 });
+  if (/switch|cisco/i.test(rawText)) items.push({ pid: 'SW-CISCO-C9200', qty: 2 });
+  if (/server|máy chủ/i.test(rawText)) items.push({ pid: 'SRV-DELL-R750', qty: 2 });
+  if (/màn hình|monitor/i.test(rawText)) items.push({ pid: 'MON-DELL-P2422H', qty: 20 });
+  if (/pc|máy tính để bàn/i.test(rawText)) items.push({ pid: 'PC-HP-PRO400', qty: 10 });
+
+  addLog('BƯỚC 2', 'Skill requirement_analysis rà soát tính đầy đủ của hồ sơ...', 'agent');
+  const missingFields = [];
+  if (!budget) missingFields.push('Ngân sách dự kiến');
+  if (!deadline) missingFields.push('Thời hạn triển khai mong muốn');
+  if (items.length === 0) missingFields.push('Danh mục sản phẩm/số lượng cụ thể');
+
+  if (missingFields.length > 0) {
+    addLog('QUYẾT ĐỊNH 1', `Phát hiện thông tin còn thiếu: [${missingFields.join(', ')}] -> Phân loại CAN_BO_SUNG`, 'warn');
+    addLog('BƯỚC 5', 'Skill sales_document_generator soạn bản nháp email đề nghị khách hàng bổ sung.', 'agent');
+    addLog('BƯỚC 6', 'Tool logging ghi nhận audit trail cho cơ hội thiếu thông tin.', 'tool');
+    return {
+      status: 'CAN_BO_SUNG',
+      auth: 'NVKD (Kiểm tra & Gửi email)',
+      company, email, items, budget, deadline, discountReq,
+      reason: `Thiếu ${missingFields.join(', ')}. Cần liên hệ bổ sung trước khi lập báo giá.`,
+      logs
+    };
+  }
+
+  addLog('BƯỚC 3', 'Tool tra cứu dữ liệu gọi Master Data (Bảng giá, Tồn kho ATP, Lead Time)...', 'tool');
+  let totalList = 0;
+  let stockSufficient = true;
+  let maxLead = 0;
+  const detailedItems = [];
+
+  for (const it of items) {
+    const p = PRODUCTS.find(x => x.id === it.pid);
+    if (!p) continue;
+    const lineTotal = p.price * it.qty;
+    totalList += lineTotal;
+    if (it.qty > p.stock) stockSufficient = false;
+    if (p.leadDays > maxLead) maxLead = p.leadDays;
+    detailedItems.push({ ...p, reqQty: it.qty, lineTotal });
+  }
+
+  const finalValue = Math.round(totalList * (1 - discountReq));
+  addLog('BƯỚC 4', `Skill opportunity_evaluation tính toán: Tổng niêm yết: ${totalList.toLocaleString('vi-VN')} đ, Chiết khấu ${discountReq*100}%, Giá đề xuất: ${finalValue.toLocaleString('vi-VN')} đ.`, 'agent');
+
+  // Check feasibility
+  const timeSufficient = (deadline >= maxLead);
+  if (!stockSufficient || !timeSufficient) {
+    const reasonFail = !stockSufficient ? 'Tồn kho khả dụng không đáp ứng đủ số lượng.' : `Thời hạn yêu cầu (${deadline} ngày) gấp hơn SLA tối thiểu (${maxLead} ngày).`;
+    addLog('QUYẾT ĐỊNH 2', `Không đáp ứng điều kiện vận hành: ${reasonFail} -> Phân loại CHUA_DAP_UNG`, 'err');
+    addLog('BƯỚC 5', 'Skill sales_document_generator lập phương án chia đợt giao hoặc sản phẩm thay thế.', 'agent');
+    addLog('BƯỚC 6', 'Tool logging lưu log thẩm tra thất bại.', 'tool');
+    return {
+      status: 'CHUA_DAP_UNG',
+      auth: 'NVKD (Tư vấn phương án thay thế)',
+      company, email, items: detailedItems, budget, deadline, discountReq, totalList, finalValue, maxLead,
+      reason: reasonFail,
+      logs
+    };
+  }
+
+  // Check authority
+  let authLevel = 'NVKD (Trong quyền hạn)';
+  let status = 'CO_THE_TIEP_TUC';
+  let reason = 'Đầy đủ dữ liệu, tồn kho và thời gian đáp ứng tốt, trong hạn mức NVKD.';
+
+  if (finalValue > AUTHORITY.MANAGER_MAX_VAL || discountReq > AUTHORITY.MANAGER_MAX_DISCOUNT) {
+    status = 'CHO_DUYET';
+    authLevel = 'Ban Giám Đốc (> 1 tỷ hoặc CK > 12%)';
+    reason = `Giá trị ${finalValue.toLocaleString('vi-VN')} đ hoặc chiết khấu ${(discountReq*100).toFixed(0)}% vượt quyền Trưởng phòng. Cần Ban Giám đốc phê duyệt.`;
+    addLog('QUYẾT ĐỊNH 3', `Vượt quyền Trưởng phòng -> Phân loại CHO_DUYET (Trình BGĐ)`, 'warn');
+  } else if (finalValue > AUTHORITY.STAFF_MAX_VAL || discountReq > AUTHORITY.STAFF_MAX_DISCOUNT) {
+    status = 'CHO_DUYET';
+    authLevel = 'Trưởng Phòng (> 200tr hoặc CK > 5%)';
+    reason = `Giá trị ${finalValue.toLocaleString('vi-VN')} đ hoặc chiết khấu ${(discountReq*100).toFixed(0)}% vượt quyền NVKD. Cần Trưởng phòng phê duyệt.`;
+    addLog('QUYẾT ĐỊNH 3', `Vượt quyền NVKD -> Phân loại CHO_DUYET (Trình Trưởng phòng)`, 'warn');
+  } else {
+    addLog('QUYẾT ĐỊNH 3', 'Nằm trọn trong hạn mức NVKD (<= 200tr, CK <= 5%) -> Phân loại CO_THE_TIEP_TUC', 'pass');
+  }
+
+  addLog('BƯỚC 5', 'Skill sales_document_generator xuất Hồ sơ cơ hội, Bản nháp email và Phiếu duyệt.', 'agent');
+  addLog('BƯỚC 6', 'Tool logging hoàn tất rà soát an toàn và lưu nhật ký kiểm toán.', 'pass');
+
+  return {
+    status, auth: authLevel,
+    company, email, items: detailedItems, budget, deadline, discountReq, totalList, finalValue, maxLead,
+    reason, logs
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   3 · THREE.JS 3D SCENE & DOSSIER SHELF (Kế thừa từ 1.txt)
+   ════════════════════════════════════════════════════════════════════════ */
+const K = {
+  bookW: 0.887, bookH: 1.33, bookD: 0.17,
+  lean: -0.18, yaw: 0.14,
+  shelfTop: [0.251, -1.241],
+  plankHalf: 3.34, plankThick: 0.105, plankDepth: 0.80,
+  wallZ: -1.43, bookZ: -1.18,
+  slot: 1.235,
+  fov: 20
+};
+
+let scene, camera, renderer, raycaster, mouse;
+const books = [];
+let activeBook = null;
+let hoveredBook = null;
+
+function init3D() {
+  const canvas = document.getElementById('gl');
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x111620);
+
+  camera = new THREE.PerspectiveCamera(K.fov, window.innerWidth / window.innerHeight, 0.1, 50);
+  camera.position.set(0, 0, 10.5);
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  // Lights
+  const amb = new THREE.AmbientLight(0xfff7ea, 0.95);
+  scene.add(amb);
+
+  const dir1 = new THREE.DirectionalLight(0xffecd2, 1.4);
+  dir1.position.set(4, 6, 7);
+  dir1.castShadow = true;
+  dir1.shadow.mapSize.width = 2048;
+  dir1.shadow.mapSize.height = 2048;
+  scene.add(dir1);
+
+  const dir2 = new THREE.DirectionalLight(0x7090b0, 0.6);
+  dir2.position.set(-5, -2, 4);
+  scene.add(dir2);
+
+  buildShelves();
+  buildDossiers();
+
+  window.addEventListener('resize', onWindowResize);
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('click', onClick);
+
+  animate();
+  canvas.classList.add('on');
+}
+
+function buildShelves() {
+  const plankGeo = new THREE.BoxGeometry(K.plankHalf * 2, K.plankThick, K.plankDepth);
+  const plankMat = new THREE.MeshStandardMaterial({ color: 0x221b14, roughness: 0.7, metalness: 0.1 });
+
+  for (let y of K.shelfTop) {
+    const m = new THREE.Mesh(plankGeo, plankMat);
+    m.position.set(0, y - K.plankThick / 2, K.bookZ + K.plankDepth / 2 - 0.2);
+    m.receiveShadow = true;
+    scene.add(m);
+  }
+
+  // Wall
+  const wallGeo = new THREE.PlaneGeometry(16, 10);
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x141a24, roughness: 0.9 });
+  const wall = new THREE.Mesh(wallGeo, wallMat);
+  wall.position.set(0, 0, K.wallZ);
+  wall.receiveShadow = true;
+  scene.add(wall);
+}
+
+function makeTexture(data) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 768;
+  const g = c.getContext('2d');
+
+  // Background
+  g.fillStyle = data.cloth;
+  g.fillRect(0, 0, 512, 768);
+
+  // Status banner / seal
+  let sealColor = '#10b981';
+  let sealText = 'CÓ THỂ TIẾP TỤC';
+  if (data.status === 'CAN_BO_SUNG') { sealColor = '#f59e0b'; sealText = 'CẦN BỔ SUNG'; }
+  else if (data.status === 'CHUA_DAP_UNG') { sealColor = '#ef4444'; sealText = 'CHƯA ĐÁP ỨNG'; }
+  else if (data.status === 'CHO_DUYET') { sealColor = '#8b5cf6'; sealText = 'CHỜ PHÊ DUYỆT'; }
+
+  // Border frame
+  g.strokeStyle = '#d4af37';
+  g.lineWidth = 4;
+  g.strokeRect(24, 24, 464, 720);
+  g.strokeStyle = 'rgba(212,175,55,0.4)';
+  g.lineWidth = 1;
+  g.strokeRect(32, 32, 448, 704);
+
+  // Header tag
+  g.fillStyle = 'rgba(212,175,55,0.85)';
+  g.font = '600 14px "Fira Code", monospace';
+  g.textAlign = 'center';
+  g.fillText('MINH AN B2B SALES DOSSIER', 256, 70);
+
+  // Logo seal
+  g.beginPath();
+  g.arc(256, 120, 30, 0, Math.PI * 2);
+  g.fillStyle = '#d4af37';
+  g.fill();
+  g.fillStyle = '#111';
+  g.font = 'bold 20px "EB Garamond"';
+  g.fillText('MA', 256, 127);
+
+  // Company Title
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 32px "EB Garamond", serif';
+  g.fillText(data.title, 256, 210);
+
+  // Subtitle
+  g.fillStyle = 'rgba(255,255,255,0.7)';
+  g.font = '500 13px Inter, sans-serif';
+  g.fillText(data.sub, 256, 245);
+
+  // Ribbon tag
+  g.fillStyle = sealColor;
+  g.fillRect(70, 300, 372, 36);
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 15px Inter, sans-serif';
+  g.fillText(sealText, 256, 324);
+
+  // Opp ID & Authority
+  g.fillStyle = '#d4af37';
+  g.font = '14px "Fira Code", monospace';
+  g.fillText(data.id, 256, 400);
+
+  g.fillStyle = 'rgba(255,255,255,0.6)';
+  g.font = '13px Inter, sans-serif';
+  g.fillText('Thẩm quyền: ' + data.auth, 256, 430);
+
+  // Bottom stamp
+  g.fillStyle = 'rgba(212,175,55,0.6)';
+  g.font = '11px "Fira Code", monospace';
+  g.fillText('CONFIDENTIAL · MINH AN CORP 2026', 256, 700);
+
+  return new THREE.CanvasTexture(c);
+}
+
+function buildDossiers() {
+  const geo = new THREE.BoxGeometry(K.bookW, K.bookH, K.bookD);
+
+  DOSSIERS.forEach((d, i) => {
+    const tex = makeTexture(d);
+    const coverMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0.1 });
+    const spineMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(d.spine), roughness: 0.7 });
+    const paperMat = new THREE.MeshStandardMaterial({ color: 0xf4eedb, roughness: 0.9 });
+
+    // Materials: [Right, Left, Top, Bottom, Front, Back]
+    const mats = [paperMat, spineMat, paperMat, paperMat, coverMat, spineMat];
+    const mesh = new THREE.Mesh(geo, mats);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    // Positioning on shelf
+    const x = (d.slot - 2) * K.slot;
+    const y = K.shelfTop[d.shelf] + K.bookH / 2;
+    const z = K.bookZ;
+
+    mesh.position.set(x, y, z);
+    mesh.rotation.set(0, K.yaw, K.lean);
+
+    mesh.userData = { dossier: d, index: i, originPos: mesh.position.clone(), originRot: mesh.rotation.clone() };
+    scene.add(mesh);
+    books.push(mesh);
+  });
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function onPointerMove(e) {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(books);
+
+  if (intersects.length > 0) {
+    const hit = intersects[0].object;
+    if (hoveredBook !== hit && hit !== activeBook) {
+      if (hoveredBook && hoveredBook !== activeBook) resetBook(hoveredBook);
+      hoveredBook = hit;
+      hoverBook(hit);
+    }
+  } else {
+    if (hoveredBook && hoveredBook !== activeBook) {
+      resetBook(hoveredBook);
+      hoveredBook = null;
+    }
+  }
+}
+
+function hoverBook(b) {
+  b.position.y = b.userData.originPos.y + 0.12;
+  b.position.z = b.userData.originPos.z + 0.15;
+}
+
+function resetBook(b) {
+  b.position.copy(b.userData.originPos);
+  b.rotation.copy(b.userData.originRot);
+}
+
+function onClick(e) {
+  // If clicked inside panels, ignore
+  if (e.target.closest('header') || e.target.closest('.detail') || e.target.closest('.view-panel') || e.target.closest('.modal-backdrop') || e.target.closest('footer')) return;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(books);
+
+  if (intersects.length > 0) {
+    selectBook(intersects[0].object);
+  } else {
+    deselectBook();
+  }
+}
+
+function selectBook(b) {
+  if (activeBook && activeBook !== b) resetBook(activeBook);
+  activeBook = b;
+
+  // Animate focus position
+  b.position.set(b.userData.originPos.x + 0.4, b.userData.originPos.y + 0.1, b.userData.originPos.z + 0.5);
+  b.rotation.set(0.08, 0.35, 0);
+
+  updateDetailDrawer(b.userData.dossier);
+  highlightTimeline(b.userData.index);
+}
+
+function deselectBook() {
+  if (activeBook) {
+    resetBook(activeBook);
+    activeBook = null;
+  }
+  document.getElementById('detail').classList.remove('on');
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   4 · UI INTERACTIONS & DATA BINDING
+   ════════════════════════════════════════════════════════════════════════ */
+window.switchTab = function(tab) {
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+
+  const tabBtn = document.getElementById(`tab-${tab}`);
+  if (tabBtn) tabBtn.classList.add('active');
+
+  const panel = document.getElementById(`view-${tab}`);
+  const gl = document.getElementById('gl');
+  const footer = document.getElementById('footer');
+  const detail = document.getElementById('detail');
+
+  if (tab === 'vault') {
+    gl.style.display = 'block';
+    footer.style.display = 'flex';
+  } else {
+    gl.style.display = 'none';
+    footer.style.display = 'none';
+    detail.classList.remove('on');
+    if (panel) panel.classList.add('active');
+  }
+};
+
+function updateDetailDrawer(d) {
+  const badge = document.getElementById('d-badge');
+  badge.className = 'detail-badge';
+  if (d.status === 'CO_THE_TIEP_TUC') { badge.classList.add('badge-success'); badge.textContent = 'CÓ THỂ TIẾP TỤC'; }
+  else if (d.status === 'CAN_BO_SUNG') { badge.classList.add('badge-warning'); badge.textContent = 'CẦN BỔ SUNG'; }
+  else if (d.status === 'CHUA_DAP_UNG') { badge.classList.add('badge-danger'); badge.textContent = 'CHƯA ĐÁP ỨNG'; }
+  else if (d.status === 'CHO_DUYET') { badge.classList.add('badge-approval'); badge.textContent = 'CHỜ PHÊ DUYỆT'; }
+
+  document.getElementById('d-meta').textContent = `${d.id} · ${d.date} · ${d.contact}`;
+  document.getElementById('d-title').textContent = d.company;
+  document.getElementById('d-desc').textContent = d.blurb;
+  document.getElementById('d-auth').textContent = d.auth;
+
+  // Total value calculation
+  let total = 0;
+  for (const it of d.items) {
+    const p = PRODUCTS.find(x => x.id === it.pid);
+    if (p) total += p.price * it.qty;
+  }
+  const finalVal = d.discountReq ? Math.round(total * (1 - d.discountReq)) : total;
+  document.getElementById('d-val').textContent = finalVal > 0 ? `${finalVal.toLocaleString('vi-VN')} đ` : 'Chưa xác định';
+  document.getElementById('d-stock').textContent = (d.status === 'CHUA_DAP_UNG' ? 'Thiếu hàng' : 'Đạt (100%)');
+  document.getElementById('d-stock').style.color = (d.status === 'CHUA_DAP_UNG' ? '#f87171' : '#34d399');
+  document.getElementById('d-lead').textContent = (d.reqLead ? `${d.reqLead} ngày` : 'Chưa có');
+
+  document.getElementById('detail').classList.add('on');
+}
+
+function renderTimeline() {
+  const tl = document.getElementById('tl');
+  tl.innerHTML = '';
+  DOSSIERS.forEach((d, i) => {
+    let dotCol = '#10b981';
+    if (d.status === 'CAN_BO_SUNG') dotCol = '#f59e0b';
+    else if (d.status === 'CHUA_DAP_UNG') dotCol = '#ef4444';
+    else if (d.status === 'CHO_DUYET') dotCol = '#8b5cf6';
+
+    const btn = document.createElement('div');
+    btn.className = 'tli';
+    btn.id = `tli-${i}`;
+    btn.innerHTML = `
+      <div class="tli-dot" style="background:${dotCol}"></div>
+      <div class="tli-info">
+        <span class="tli-id">${d.id}</span>
+        <span class="tli-title">${d.company}</span>
+      </div>
+    `;
+    btn.onclick = () => {
+      selectBook(books[i]);
+    };
+    tl.appendChild(btn);
+  });
+}
+
+function highlightTimeline(idx) {
+  document.querySelectorAll('.tli').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(`tli-${idx}`);
+  if (el) {
+    el.classList.add('active');
+    el.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+  }
+}
+
+function renderPipelineTable() {
+  const tbody = document.getElementById('pipeline-tbody');
+  tbody.innerHTML = '';
+
+  DOSSIERS.forEach(d => {
+    let tagClass = 'badge-success';
+    let tagText = 'Có thể tiếp tục';
+    if (d.status === 'CAN_BO_SUNG') { tagClass = 'badge-warning'; tagText = 'Cần bổ sung'; }
+    else if (d.status === 'CHUA_DAP_UNG') { tagClass = 'badge-danger'; tagText = 'Chưa đáp ứng'; }
+    else if (d.status === 'CHO_DUYET') { tagClass = 'badge-approval'; tagText = 'Chờ duyệt'; }
+
+    let total = 0;
+    const names = [];
+    for (const it of d.items) {
+      const p = PRODUCTS.find(x => x.id === it.pid);
+      if (p) {
+        total += p.price * it.qty;
+        names.push(`${it.qty}x ${p.name}`);
+      }
+    }
+    const finalVal = d.discountReq ? Math.round(total * (1 - d.discountReq)) : total;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span style="font-family:'Fira Code'; color:var(--gold);">${d.id}</span></td>
+      <td><b>${d.company}</b><br><span style="font-size:11px; color:var(--ink-dim);">${d.contact}</span></td>
+      <td>${names.length > 0 ? names.join('<br>') : '<i style="color:var(--ink-dim)">Chưa có danh mục cụ thể</i>'}</td>
+      <td style="font-family:'Fira Code'; font-weight:600;">${finalVal > 0 ? finalVal.toLocaleString('vi-VN') + ' đ' : 'N/A'}</td>
+      <td><span class="detail-badge ${tagClass}" style="margin:0; padding:4px 8px; font-size:11px;">${tagText}</span></td>
+      <td style="font-size:12px; color:var(--ink-dim);">${d.auth}</td>
+      <td>
+        <button class="btn-act" style="padding:4px 10px; font-size:11px;" onclick="openModalForDossier('${d.id}')">Xem</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* Modal Openers */
+window.openDossierModal = function() {
+  if (!activeBook) return;
+  openModalForDossier(activeBook.userData.dossier.id);
+};
+
+window.openModalForDossier = function(oppId) {
+  const d = DOSSIERS.find(x => x.id === oppId);
+  if (!d) return;
+
+  const modal = document.getElementById('doc-modal');
+  document.getElementById('modal-title').textContent = `Hồ Sơ Cơ Hội Bán Hàng: ${d.company} (${d.id})`;
+
+  let prodRows = '';
+  let subtotal = 0;
+  for (const it of d.items) {
+    const p = PRODUCTS.find(x => x.id === it.pid);
+    if (p) {
+      const lt = p.price * it.qty;
+      subtotal += lt;
+      prodRows += `<tr><td>${p.id}</td><td>${p.name}</td><td>${it.qty}</td><td>${p.price.toLocaleString('vi-VN')} đ</td><td>${lt.toLocaleString('vi-VN')} đ</td></tr>`;
+    }
+  }
+
+  const finalVal = d.discountReq ? Math.round(subtotal * (1 - d.discountReq)) : subtotal;
+
+  let approvalSection = '';
+  if (d.status === 'CHO_DUYET') {
+    approvalSection = `
+      <div class="doc-section" style="border-color: rgba(139, 92, 246, 0.4);">
+        <h4 style="color: #a78bfa;">📄 PHIẾU CHUYỂN DUYỆT THẨM QUYỀN</h4>
+        <p style="font-size:13px; color:var(--ink-dim);"><b>Cấp duyệt thẩm quyền:</b> ${d.auth}</p>
+        <p style="font-size:13px; color:var(--ink-dim);"><b>Lý do chuyển duyệt:</b> Giá trị đơn hàng ${finalVal.toLocaleString('vi-VN')} đ hoặc mức chiết khấu ${(d.discountReq*100).toFixed(0)}% vượt quá hạn mức tự quyết của NVKD.</p>
+        <div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.3); border-radius:6px; font-size:12px; font-family:'Fira Code';">
+          [XÁC THỰC GUARDRAIL]: Trạng thái CHỜ DUYỆT. Hệ thống ngăn chặn việc phát hành hợp đồng/báo giá chính thức nếu chưa có xác nhận từ Trưởng phòng/BGĐ.
+        </div>
+      </div>
+    `;
+  }
+
+  const content = `
+    <div class="doc-section">
+      <h4>📑 THÔNG TIN CƠ HỘI & ĐỐI CHIẾU DOANH NGHIỆP</h4>
+      <table class="doc-table">
+        <tr><th style="width:25%">Khách hàng</th><td>${d.company}</td><th style="width:25%">Người liên hệ</th><td>${d.contact} (${d.email})</td></tr>
+        <tr><th>Mã cơ hội</th><td>${d.id}</td><th>Ngày tiếp nhận</th><td>${d.date}</td></tr>
+        <tr><th>Ngân sách dự kiến</th><td>${d.budget ? d.budget.toLocaleString('vi-VN') + ' đ' : 'Chưa cung cấp'}</td><th>Thời hạn yêu cầu</th><td>${d.reqLead ? d.reqLead + ' ngày' : 'Chưa có'}</td></tr>
+        <tr><th>Trạng thái phân loại</th><td><b>${d.status}</b></td><th>Thẩm quyền duyệt</th><td>${d.auth}</td></tr>
+      </table>
+    </div>
+
+    <div class="doc-section">
+      <h4>📦 BẢNG ĐỐI CHIẾU SẢN PHẨM & TỒN KHẢ DỤNG</h4>
+      <table class="doc-table">
+        <thead><tr><th>Mã SP</th><th>Tên Sản Phẩm</th><th>SL</th><th>Đơn Giá</th><th>Thành Tiền</th></tr></thead>
+        <tbody>${prodRows || '<tr><td colspan="5">Chưa có sản phẩm cụ thể</td></tr>'}</tbody>
+      </table>
+      <div style="text-align:right; margin-top:8px; font-family:'Fira Code'; font-size:14px;">
+        Tổng niêm yết: <b>${subtotal.toLocaleString('vi-VN')} đ</b> | Chiết khấu: <b>${(d.discountReq*100).toFixed(0)}%</b> | Giá trị đề xuất: <b style="color:var(--gold); font-size:16px;">${finalVal.toLocaleString('vi-VN')} đ</b>
+      </div>
+    </div>
+
+    ${approvalSection}
+
+    <div class="doc-section">
+      <h4>✉️ BẢN NHÁP PHẢN HỒI KHÁCH HÀNG (Email Draft)</h4>
+      <div class="email-preview">Kính gửi Quý khách hàng ${d.company},
+Người liên hệ: ${d.contact}
+
+Công ty Cổ phần Công nghệ Minh An xin trân trọng cảm ơn Quý công ty đã tin tưởng gửi yêu cầu báo giá giải pháp thiết bị công nghệ.
+
+${d.status === 'CO_THE_TIEP_TUC' ? `Chúng tôi xin gửi bản báo giá sơ bộ cho các hạng mục theo yêu cầu với tổng giá trị đề xuất là ${finalVal.toLocaleString('vi-VN')} VNĐ (đã bao gồm chiết khấu ${d.discountReq*100}%). Toàn bộ thiết bị hiện có sẵn trong kho và sẵn sàng bàn giao trong vòng ${d.reqLead} ngày.` : ''}
+${d.status === 'CAN_BO_SUNG' ? `Để hoàn thiện hồ sơ báo giá chính xác nhất, kính đề nghị Quý khách vui lòng cung cấp thêm thông tin về ngân sách dự kiến và thời hạn bàn giao mong muốn.` : ''}
+${d.status === 'CHUA_DAP_UNG' ? `Do số lượng màn hình hiện tại cần thêm 5 ngày để nhập khẩu bổ sung, Minh An xin đề xuất phương án giao trước 120 chiếc trong 24h và phần còn lại sau 5 ngày làm việc.` : ''}
+${d.status === 'CHO_DUYET' ? `Yêu cầu về mức chiết khấu ${d.discountReq*100}% của Quý công ty đang được chuyển lên cấp Trưởng phòng phê duyệt chính sách đối tác chiến lược. Chúng tôi sẽ phản hồi văn bản chính thức trong vòng 2 giờ làm việc.` : ''}
+
+Trân trọng,
+Bộ phận Kinh doanh Doanh nghiệp — Công ty Minh An
+Hotline: 1900-MINHAN · Email: b2b@minhan.vn</div>
+    </div>
+  `;
+
+  document.getElementById('modal-body-content').innerHTML = content;
+  modal.classList.add('on');
+};
+
+window.closeDossierModal = function() {
+  document.getElementById('doc-modal').classList.remove('on');
+};
+
+/* Simulator Preset Loader */
+const PRESETS = {
+  tc1: `Kính gửi Minh An,
+Công ty Tập đoàn Xây dựng Hòa Bình cần mua 5 máy laptop Dell Latitude 5530 và 1 Switch Cisco Catalyst 9200L cho ban chỉ huy công trường.
+Ngân sách dự kiến: 170 triệu đồng.
+Thời hạn giao hàng: trong vòng 7 ngày làm việc.
+Mong muốn mức chiết khấu 3% cho đơn hàng này.
+Người liên hệ: Nguyễn Văn Hùng - hung.nv@hoabinhcorp.vn`,
+
+  tc2: `Chào bạn,
+Chúng tôi là chuỗi siêu thị WinMart Retail cần mua 60 màn hình máy tính Dell 24 inch và 30 máy tính để bàn HP ProDesk 400.
+Vui lòng gửi báo giá gấp cho chúng tôi sớm trong tháng này.
+Liên hệ: Mai - mai.tt@winmart.vn`,
+
+  tc3: `Gửi Phòng Kinh doanh Minh An,
+Công ty Cổ phần Bất động sản Novaland chuẩn bị lắp đặt hệ thống phòng server mới.
+Hạng mục: 2 Server Dell PowerEdge R750 và 8 Switch Cisco 9200L.
+Tổng ngân sách: 550 triệu. Thời hạn giao: 20 ngày.
+Do Novaland là đối tác lớn, chúng tôi yêu cầu mức chiết khấu 10%.
+Liên hệ: Lê Hoàng Nam - nam.lh@novaland.com.vn`,
+
+  tc4: `Khẩn cấp: Bệnh viện Đa khoa Tâm Anh cần mua gấp 150 màn hình Dell Professional 24 inch cho khu khám bệnh mới khánh thành.
+Yêu cầu bàn giao và lắp đặt hoàn thiện trong vòng 1 ngày làm việc (24 giờ).
+Ngân sách: 650 triệu.
+Liên hệ: BS. Phan Anh Tuấn - tuan.pa@tamanhhospital.vn`,
+
+  tc5: `Kính gửi Ban Giám đốc Minh An,
+Tổng Công ty Viettel IDC cần đầu tư mở rộng hạ tầng Cloud:
+Số lượng: 12 Server Dell R750 và 15 Switch Cisco Catalyst 9200L.
+Ngân sách dự án: 2 tỷ đồng. Thời hạn bàn giao: 30 ngày. Đề xuất chiết khấu 14%.
+Người đại diện: Trịnh Đình Quang - quangtd@viettel.com.vn`
+};
+
+window.loadPreset = function(k) {
+  document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('sim-raw-input').value = PRESETS[k];
+};
+
+window.runLiveAgent = function() {
+  const raw = document.getElementById('sim-raw-input').value.trim();
+  if (!raw) {
+    alert('Vui lòng nhập nội dung yêu cầu hoặc chọn một kịch bản kiểm thử.');
+    return;
+  }
+
+  const logBox = document.getElementById('sim-log-box');
+  const statusPill = document.getElementById('agent-status-pill');
+  const resBox = document.getElementById('sim-result-box');
+  
+  statusPill.textContent = 'Đang xử lý...';
+  statusPill.style.color = '#38bdf8';
+  logBox.innerHTML = '';
+  resBox.style.display = 'none';
+
+  const res = runAgentOnInput(raw);
+
+  // Render logs with animated delay
+  res.logs.forEach((l, i) => {
+    setTimeout(() => {
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      let tagClass = 'log-agent';
+      if (l.type === 'tool') tagClass = 'log-tool';
+      else if (l.type === 'warn') tagClass = 'log-warn';
+      else if (l.type === 'err') tagClass = 'log-err';
+      else if (l.type === 'pass') tagClass = 'log-pass';
+
+      div.innerHTML = `<span class="log-time">[${l.time}]</span> <span class="${tagClass}">[${l.tag}]</span> ${l.msg}`;
+      logBox.appendChild(div);
+      logBox.scrollTop = logBox.scrollHeight;
+
+      if (i === res.logs.length - 1) {
+        statusPill.textContent = 'Hoàn tất';
+        statusPill.style.color = '#34d399';
+        resBox.style.display = 'block';
+        document.getElementById('sim-res-status').textContent = res.status + ' (' + res.auth + ')';
+        window.lastSimResult = res;
+      }
+    }, i * 220);
+  });
+};
+
+window.openCurrentSimResult = function() {
+  if (!window.lastSimResult) return;
+  const r = window.lastSimResult;
+  const modal = document.getElementById('doc-modal');
+  document.getElementById('modal-title').textContent = `Kết Quả Xử Lý Cơ Hội: ${r.company}`;
+
+  let itemsHtml = '';
+  if (r.items && r.items.length > 0) {
+    itemsHtml = r.items.map(it => `<tr><td>${it.id || it.pid}</td><td>${it.name || 'Sản phẩm'}</td><td>${it.reqQty || it.qty}</td><td>${it.price ? it.price.toLocaleString('vi-VN') + ' đ' : 'N/A'}</td><td>${it.lineTotal ? it.lineTotal.toLocaleString('vi-VN') + ' đ' : 'N/A'}</td></tr>`).join('');
+  }
+
+  document.getElementById('modal-body-content').innerHTML = `
+    <div class="doc-section">
+      <h4>🎯 KẾT LUẬN THẨM ĐỊNH CỦA AGENT</h4>
+      <p><b>Trạng thái phân loại:</b> <span class="detail-badge badge-success" style="display:inline-block; margin:0;">${r.status}</span></p>
+      <p><b>Thẩm quyền xử lý:</b> <b>${r.auth}</b></p>
+      <p><b>Căn cứ & Lý giải:</b> ${r.reason}</p>
+    </div>
+
+    <div class="doc-section">
+      <h4>📦 ĐỐI CHIẾU DANH MỤC SẢN PHẨM</h4>
+      <table class="doc-table">
+        <thead><tr><th>Mã SP</th><th>Tên Sản Phẩm</th><th>SL</th><th>Đơn Giá</th><th>Thành Tiền</th></tr></thead>
+        <tbody>${itemsHtml || '<tr><td colspan="5">Không có sản phẩm hợp lệ</td></tr>'}</tbody>
+      </table>
+      ${r.finalValue ? `<div style="text-align:right; font-family:'Fira Code'; font-size:14px; margin-top:8px;">Tổng đề xuất sau chiết khấu: <b style="color:var(--gold); font-size:16px;">${r.finalValue.toLocaleString('vi-VN')} đ</b></div>` : ''}
+    </div>
+
+    <div class="doc-section">
+      <h4>✉️ BẢN NHÁP EMAIL TỰ ĐỘNG SINH</h4>
+      <div class="email-preview">Kính gửi Quý khách hàng ${r.company},
+
+Công ty Minh An đã tiếp nhận và phân tích yêu cầu của Quý công ty.
+Kết quả xử lý: ${r.status}.
+
+${r.reason}
+
+Trân trọng,
+Hệ thống AI Quản Trị Cơ Hội Bán Hàng — Công ty Minh An</div>
+    </div>
+  `;
+  modal.classList.add('on');
+};
+
+window.loadIntoSimulator = function() {
+  if (!activeBook) return;
+  const d = activeBook.userData.dossier;
+  switchTab('simulator');
+  document.getElementById('sim-raw-input').value = `Kính gửi Minh An,
+Công ty: ${d.company}
+Người liên hệ: ${d.contact} (${d.email})
+Hạng mục yêu cầu: ${d.items.map(x => `${x.qty} thiết bị mã ${x.pid}`).join(', ')}
+Ngân sách dự kiến: ${d.budget ? (d.budget/1000000) + ' triệu đồng' : 'Chưa xác định'}
+Thời hạn giao hàng: ${d.reqLead ? d.reqLead + ' ngày' : 'Chưa có'}
+Đề xuất chiết khấu: ${d.discountReq ? (d.discountReq*100) + '%' : '0%'}`;
+};
+
+window.openLogsModal = function() {
+  if (!activeBook) return;
+  const d = activeBook.userData.dossier;
+  const modal = document.getElementById('doc-modal');
+  document.getElementById('modal-title').textContent = `Nhật Ký Thực Thi (Audit Logs): ${d.id}`;
+
+  document.getElementById('modal-body-content').innerHTML = `
+    <div class="doc-section">
+      <h4>📋 AUDIT TRAIL LOGS — MÃ ĐỊNH DANH ${d.id}</h4>
+      <div style="background:#0b0e14; padding:16px; border-radius:8px; font-family:'Fira Code'; font-size:12px; line-height:1.7; color:#a0aec0;">
+        <div><span style="color:#64748b;">[${d.date} 08:15:02]</span> <span style="color:var(--gold);">[INGEST_STAGE]</span> Tiếp nhận payload từ email: ${d.email}</div>
+        <div><span style="color:#64748b;">[${d.date} 08:15:03]</span> <span style="color:#38bdf8;">[SKILL:requirement_analysis]</span> Bóc tách ${d.items.length} hạng mục. Trạng thái kiểm tra trường: ${d.budget ? 'ĐỦ' : 'THIẾU'}.</div>
+        <div><span style="color:#64748b;">[${d.date} 08:15:04]</span> <span style="color:#38bdf8;">[TOOL:catalog_lookup]</span> Bảng giá phiên bản Q4-2026. Tồn kho khả dụng: ĐẠT.</div>
+        <div><span style="color:#64748b;">[${d.date} 08:15:05]</span> <span style="color:var(--gold);">[SKILL:opportunity_evaluation]</span> Phân loại trạng thái: <b style="color:#fff;">${d.status}</b>. Phân cấp thẩm quyền: <b>${d.auth}</b>.</div>
+        <div><span style="color:#64748b;">[${d.date} 08:15:06]</span> <span style="color:#34d399;">[GUARDRAILS]</span> Không phát hiện vi phạm ranh giới. Hoàn tất đóng gói hồ sơ B2B.</div>
+      </div>
+    </div>
+  `;
+  modal.classList.add('on');
+};
+
+/* ════════════════════════════════════════════════════════════════════════
+   5 · BOOTSTRAP
+   ════════════════════════════════════════════════════════════════════════ */
+const barfill = document.getElementById('barfill');
+const loader = document.getElementById('loader');
+
+(async function boot() {
+  barfill.style.transform = 'scaleX(0.2)';
+  await new Promise(r => setTimeout(r, 150));
+  barfill.style.transform = 'scaleX(0.5)';
+  
+  init3D();
+  renderTimeline();
+  renderPipelineTable();
+
+  // Load default preset into simulator
+  document.getElementById('sim-raw-input').value = PRESETS.tc1;
+
+  barfill.style.transform = 'scaleX(1.0)';
+  await new Promise(r => setTimeout(r, 200));
+
+  loader.classList.add('gone');
+  
+  // Select first book by default
+  setTimeout(() => {
+    if (books.length > 0) selectBook(books[0]);
+  }, 400);
+})();
+</script>
+</body>
+</html>
